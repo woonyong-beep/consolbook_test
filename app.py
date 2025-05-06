@@ -3,10 +3,15 @@ import pandas as pd
 
 st.title("연결 재무제표 프로토타입")
 
-uploaded_file = st.file_uploader("별도재무제표 엑셀 업로드", type=["xlsx"])
+uploaded_file = st.file_uploader("재무제표 업로드 (엑셀 or CSV)", type=["xlsx", "csv"])
 
 if uploaded_file is not None:
-    df = pd.read_excel(uploaded_file)
+    # 파일 확장자 체크 후 읽기
+    if uploaded_file.name.endswith('.csv'):
+        df = pd.read_csv(uploaded_file)
+    else:
+        df = pd.read_excel(uploaded_file)
+
     st.write("업로드된 데이터:")
     st.dataframe(df)
 
