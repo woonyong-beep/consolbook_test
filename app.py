@@ -10,16 +10,25 @@ uploaded_files = st.file_uploader("별도 재무제표 업로드 (모회사 A1, 
 
 dataframes = {}
 company_labels = ["A1", "A2", "A3"]
+required_cols = ["표준계정과목코드", "표준계정과목명", "금액"]
 
 for i, label in enumerate(company_labels):
     if i < len(uploaded_files):
         df = pd.read_csv(uploaded_files[i])
+
+        # 컬럼 체크 (방법1)
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"{label} 파일에 필수 컬럼이 없습니다: {missing_cols}. 빈 데이터로 처리합니다.")
+            df = pd.DataFrame(columns=required_cols)
+
         st.write(f"업로드된 데이터 ({label})")
         st.dataframe(df)
+
         dataframes[label] = df
     else:
-        # 비어있는 데이터프레임 생성
-        dataframes[label] = pd.DataFrame(columns=["표준계정과목코드", "표준계정과목명", "금액"])
+        # 파일이 없으면 빈 데이터로 생성
+        dataframes[label] = pd.DataFrame(columns=required_cols)
 
 # 연결조정 데이터 업로드
 st.header("Step 2: 연결조정 데이터 업로드 (B1, B2)")
@@ -27,6 +36,14 @@ uploaded_adjust = st.file_uploader("연결조정 데이터 업로드 (B1, B2)", 
 
 if uploaded_adjust is not None:
     adjust_df = pd.read_csv(uploaded_adjust)
+
+    # 컬럼 체크
+    adjust_required_cols = ["표준계정과목코드", "표준계정과목명", "B1", "B2"]
+    missing_cols = [col for col in adjust_required_cols if col not in adjust_df.columns]
+    if missing_cols:
+        st.error(f"연결조정 파일에 필수 컬럼이 없습니다: {missing_cols}. 빈 데이터로 처리합니다.")
+        adjust_df = pd.DataFrame(columns=adjust_required_cols)
+
     st.write("업로드된 연결조정 데이터")
     st.dataframe(adjust_df)
 else:
@@ -35,8 +52,16 @@ else:
 # 연결정산표 만들기
 st.header("Step 3: 연결정산표")
 
-# 표준계정 목록 확보
-codes = pd.concat([df[["표준계정과목코드", "표준계정과목명"]] for df in list(dataframes.values()) + [adjust_df]]).drop_duplicates()
+# 표준계정 목록 확보 (방법2 적용 → 유효한 데이터만 합치기)
+concat_list = []
+for df in list(dataframes.values()) + [adjust_df]:
+    if "표준계정과목코드" in df.columns and "표준계정과목명" in df.columns:
+        concat_list.append(df[["표준계정과목코드", "표준계정과목명"]])
+
+if concat_list:
+    codes = pd.concat(concat_list).drop_duplicates()
+else:
+    codes = pd.DataFrame(columns=["표준계정과목코드", "표준계정과목명"])
 
 # 회사별 데이터 합치기
 for label in company_labels:
